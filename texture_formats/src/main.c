@@ -82,7 +82,7 @@ int main(void) {
         { SDL_PIXELFORMAT_ARGB8888, XGU_TEXTURE_FORMAT_X8R8G8B8_SWIZZLED, true, false, "SZ_X8R8G8B8" },
         { SDL_PIXELFORMAT_BGRA8888, 0x3B, true, false, "SZ_B8G8R8A8" }, 
 
-        // linear TODO: currently broken
+        // linear
         { SDL_PIXELFORMAT_ARGB1555, XGU_TEXTURE_FORMAT_A1R5G5B5, false, false, "A1R5G5B5" },
         { SDL_PIXELFORMAT_RGB565, XGU_TEXTURE_FORMAT_R5G6B5, false, false, "R5G6B5" },
         { SDL_PIXELFORMAT_ARGB8888, XGU_TEXTURE_FORMAT_A8R8G8B8, false, false, "A8R8G8B8" },
@@ -248,6 +248,13 @@ int main(void) {
         // Clear all attributes
         for(int i = 0; i < XGU_ATTRIBUTE_COUNT; i++) {
             xgux_set_attrib_pointer(i, XGU_FLOAT, 0, 0, NULL);
+        }
+
+        // HACK: normalize texture coords based on swizzle status, not sure why this is required yet...
+        for (int i = 0; i < num_vertices; i++) {
+            float val = format_map[format_map_index].XguSwizzled ? 1.0f : 256.0f;
+            if (alloc_vertices[i].texcoord[0]) alloc_vertices[i].texcoord[0] = val;
+            if (alloc_vertices[i].texcoord[1]) alloc_vertices[i].texcoord[1] = val;
         }
         
         xgux_set_attrib_pointer(XGU_VERTEX_ARRAY, XGU_FLOAT, 3, sizeof(alloc_vertices[0]), &alloc_vertices[0].pos[0]);
