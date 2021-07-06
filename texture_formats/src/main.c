@@ -160,6 +160,11 @@ int main(void) {
     assert(is_pow2(src_tex->w));
     assert(is_pow2(src_tex->h));
 
+    // allocate vertices memory
+    Vertex *alloc_vertices = MmAllocateContiguousMemoryEx(sizeof(vertices), 0, 0x03FFAFFF, 0, PAGE_WRITECOMBINE | PAGE_READWRITE);
+    memcpy(alloc_vertices, vertices, sizeof(vertices));
+    uint32_t num_vertices = sizeof(vertices)/sizeof(vertices[0]);
+    
     // buffer to hold converted texture data, assumes no more than 32bpp
     uint8_t *dst_tex_buf = MmAllocateContiguousMemoryEx(src_tex->w * src_tex->h * 4, 0, 0x03FFAFFF, 0, PAGE_WRITECOMBINE | PAGE_READWRITE);
     SDL_Surface *dst_txt = SDL_ConvertSurfaceFormat(src_tex, format_map[format_map_index].SdlFormat, 0);
@@ -169,11 +174,13 @@ int main(void) {
         memcpy(dst_tex_buf, dst_txt->pixels, dst_txt->pitch * dst_txt->h);
     }
 
-    // allocate vertices memory
-    Vertex *alloc_vertices = MmAllocateContiguousMemoryEx(sizeof(vertices), 0, 0x03FFAFFF, 0, PAGE_WRITECOMBINE | PAGE_READWRITE);
-    memcpy(alloc_vertices, vertices, sizeof(vertices));
-    uint32_t num_vertices = sizeof(vertices)/sizeof(vertices[0]);
-    
+    // HACK: normalize texture coords based on swizzle status, not sure why this is required yet...
+    for (int i = 0; i < num_vertices; i++) {
+        float val = format_map[format_map_index].XguSwizzled ? 1.0f : 256.0f;
+        if (alloc_vertices[i].texcoord[0]) alloc_vertices[i].texcoord[0] = val;
+        if (alloc_vertices[i].texcoord[1]) alloc_vertices[i].texcoord[1] = val;
+    } 
+
     input_init();
     pb_init();
     pb_show_front_screen();
@@ -200,6 +207,13 @@ int main(void) {
                 } else {
                     memcpy(dst_tex_buf, dst_txt->pixels, dst_txt->pitch * dst_txt->h);
                 }
+
+                // HACK: normalize texture coords based on swizzle status, not sure why this is required yet...
+                for (int i = 0; i < num_vertices; i++) {
+                    float val = format_map[format_map_index].XguSwizzled ? 1.0f : 256.0f;
+                    if (alloc_vertices[i].texcoord[0]) alloc_vertices[i].texcoord[0] = val;
+                    if (alloc_vertices[i].texcoord[1]) alloc_vertices[i].texcoord[1] = val;
+                } 
             }
             toggleFormat = false;
         } else toggleFormat = true;
@@ -250,13 +264,6 @@ int main(void) {
             xgux_set_attrib_pointer(i, XGU_FLOAT, 0, 0, NULL);
         }
 
-        // HACK: normalize texture coords based on swizzle status, not sure why this is required yet...
-        for (int i = 0; i < num_vertices; i++) {
-            float val = format_map[format_map_index].XguSwizzled ? 1.0f : 256.0f;
-            if (alloc_vertices[i].texcoord[0]) alloc_vertices[i].texcoord[0] = val;
-            if (alloc_vertices[i].texcoord[1]) alloc_vertices[i].texcoord[1] = val;
-        }
-        
         xgux_set_attrib_pointer(XGU_VERTEX_ARRAY, XGU_FLOAT, 3, sizeof(alloc_vertices[0]), &alloc_vertices[0].pos[0]);
         xgux_set_attrib_pointer(XGU_TEXCOORD0_ARRAY, XGU_FLOAT, 2, sizeof(alloc_vertices[0]), &alloc_vertices[0].texcoord[0]);
         xgux_set_attrib_pointer(XGU_NORMAL_ARRAY, XGU_FLOAT, 3, sizeof(alloc_vertices[0]), &alloc_vertices[0].normal[0]);
